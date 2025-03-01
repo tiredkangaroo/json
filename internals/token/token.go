@@ -63,8 +63,8 @@ func (t Token) Value() string {
 	return t.V
 }
 
-func NewToken(t Type, v string) *Token {
-	return &Token{T: t, V: v}
+func NewToken(t Type, v string) Token {
+	return Token{T: t, V: v}
 }
 
 var (
@@ -81,7 +81,7 @@ var (
 	COMMA_TOKEN = NewToken(COMMA, "")
 )
 
-var KEYWORDS = map[string]*Token{
+var KEYWORDS = map[string]Token{
 	"true":  TRUE_TOKEN,
 	"false": FALSE_TOKEN,
 	"null":  NULL_TOKEN,

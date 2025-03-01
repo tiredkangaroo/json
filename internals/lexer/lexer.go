@@ -1,54 +1,48 @@
 package lexer
 
 import (
-	"fmt"
 	"io"
 	"json/internals/token"
 )
 
+// compare
 var TRUE_REMAINING = [...]byte{'r', 'u', 'e'}
 var FALSE_REMAINING = [...]byte{'a', 'l', 's', 'e'}
 var NULL_REMAINING = [...]byte{'u', 'l', 'l'}
 
-type tokenPool struct {
-	tokens      []token.Token
-	lastElement int
-}
-
-func (pool *tokenPool) NewToken(t token.Type, v string) *token.Token {
-	pool.lastElement++
-	if pool.lastElement >= len(pool.tokens) { // it should only differ by 1
-		pool.tokens = append(pool.tokens, token.Token{})
-	}
-	tk := &pool.tokens[pool.lastElement]
-	tk.T = t
-	tk.V = v
-	return tk
-}
-
 type Lexer struct {
-	pool *tokenPool
+	tokens *tokens
 	*Reader
 }
 
-func (l *Lexer) NextToken() (*token.Token, error) {
+func (l *Lexer) PoolSlice() *[]token.Token {
+	return &l.tokens.tokens
+}
+
+func (l *Lexer) NextToken() error {
 	c, err := l.skipWhitespace()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	switch c {
 	case '{':
-		return token.LBRACKET_TOKEN, nil
+		l.tokens.AddToken(token.LBRACKET_TOKEN)
+		return nil
 	case '}':
-		return token.RBRACKET_TOKEN, nil
+		l.tokens.AddToken(token.RBRACKET_TOKEN)
+		return nil
 	case '[':
-		return token.LBRACE_TOKEN, nil
+		l.tokens.AddToken(token.LBRACE_TOKEN)
+		return nil
 	case ']':
-		return token.RBRACE_TOKEN, nil
+		l.tokens.AddToken(token.RBRACE_TOKEN)
+		return nil
 	case ':':
-		return token.COLON_TOKEN, nil
+		l.tokens.AddToken(token.COLON_TOKEN)
+		return nil
 	case ',':
-		return token.COMMA_TOKEN, nil
+		l.tokens.AddToken(token.COMMA_TOKEN)
+		return nil
 	case '"':
 		return l.readLiteral()
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
@@ -60,34 +54,37 @@ func (l *Lexer) NextToken() (*token.Token, error) {
 		u := [3]byte{}
 		_, err := Read(l.Reader, u[:])
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if u != TRUE_REMAINING {
-			return nil, ErrUnknownIdentifier
+			return ErrUnknownIdentifier
 		}
-		return token.TRUE_TOKEN, nil
+		l.tokens.AddToken(token.TRUE_TOKEN)
+		return nil
 	case 'f':
 		u := [4]byte{}
 		_, err := Read(l.Reader, u[:])
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if u != FALSE_REMAINING {
-			return nil, ErrUnknownIdentifier
+			return ErrUnknownIdentifier
 		}
-		return token.FALSE_TOKEN, nil
+		l.tokens.AddToken(token.FALSE_TOKEN)
+		return nil
 	case 'n':
 		u := [3]byte{}
 		_, err := Read(l.Reader, u[:])
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if u != NULL_REMAINING {
-			return nil, ErrUnknownIdentifier
+			return ErrUnknownIdentifier
 		}
-		return token.NULL_TOKEN, nil
+		l.tokens.AddToken(token.NULL_TOKEN)
+		return nil
 	}
-	return nil, ErrUnknownIdentifier
+	return ErrUnknownIdentifier
 }
 
 // skipWhitespace skips the whitespace and returns the next non-whitespace character.
@@ -99,7 +96,7 @@ func (l *Lexer) skipWhitespace() (byte, error) {
 	return b, err
 }
 
-func (l *Lexer) readLiteral() (*token.Token, error) {
+func (l *Lexer) readLiteral() error {
 	s := make([]byte, 0, 12)
 	var b byte
 	var err error
@@ -107,18 +104,18 @@ func (l *Lexer) readLiteral() (*token.Token, error) {
 		if b == '\\' {
 			v, err := l.ReadByte() // if err != nil yes we have an unterminated literal however, throw this error for the next loop
 			if err != nil {
-				return nil, err
+				return err
 			}
 			s = append(s, v) // since it's escaped just sneak it in
 			continue         // we're gonna ignore the escape character
 		}
 		s = append(s, b)
 	}
-	t := l.pool.NewToken(token.LITERAL, string(s))
-	return t, err
+	l.tokens.NewToken(token.LITERAL, string(s))
+	return err
 }
 
-func (l *Lexer) readNumber(n byte) (*token.Token, error) {
+func (l *Lexer) readNumber(n byte) error {
 	s := make([]byte, 0, 10)
 	s = append(s, n)
 
@@ -127,10 +124,10 @@ func (l *Lexer) readNumber(n byte) (*token.Token, error) {
 	for {
 		b, err := l.ReadByte()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if b == '-' {
-			return nil, ErrInvalidNumber
+			return ErrInvalidNumber
 		}
 		if isNumber(b) {
 			s = append(s, b)
@@ -138,17 +135,17 @@ func (l *Lexer) readNumber(n byte) (*token.Token, error) {
 		}
 		if b == '.' {
 			if decimal {
-				return nil, ErrTooManyDecimals
+				return ErrTooManyDecimals
 			}
 			if e {
-				return nil, ErrInvalidScientificNotation
+				return ErrInvalidScientificNotation
 			}
 			s = append(s, b)
 			continue
 		}
 		if b == 'e' {
 			if e {
-				return nil, ErrInvalidScientificNotation
+				return ErrInvalidScientificNotation
 			}
 			s = append(s, b)
 			continue
@@ -157,39 +154,37 @@ func (l *Lexer) readNumber(n byte) (*token.Token, error) {
 		l.UnreadByte()
 		break
 	}
-	return l.pool.NewToken(token.NUMBER, string(s)), nil
+	l.tokens.NewToken(token.NUMBER, string(s))
+	return nil
 }
 
-func (l *Lexer) readKeyword(c byte) (*token.Token, error) {
-	b := make([]byte, 0, 6)
-	b = append(b, c)
+// func (l *Lexer) readKeyword(c byte) (*token.Token, error) {
+// 	b := make([]byte, 0, 6)
+// 	b = append(b, c)
 
-	var j byte
-	var err error
-	for j, err = l.ReadByte(); isCharacter(j); j, err = l.ReadByte() {
-		b = append(b, j)
-	}
-	// unread non-character byte
-	l.UnreadByte()
+// 	var j byte
+// 	var err error
+// 	for j, err = l.ReadByte(); isCharacter(j); j, err = l.ReadByte() {
+// 		b = append(b, j)
+// 	}
+// 	// unread non-character byte
+// 	l.UnreadByte()
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	tk, ok := token.KEYWORDS[string(b)]
-	fmt.Println("179", tk)
-	if !ok {
-		return nil, ErrUnknownIdentifier
-	}
-	return tk, nil
-}
+// 	tk, ok := token.KEYWORDS[string(b)]
+// 	fmt.Println("179", tk)
+// 	if !ok {
+// 		return nil, ErrUnknownIdentifier
+// 	}
+// 	return tk, nil
+// }
 
 func NewLexer(rd io.Reader) Lexer {
 	return Lexer{
-		pool: &tokenPool{
-			tokens:      make([]token.Token, 0, 256),
-			lastElement: -1,
-		},
+		tokens: newTokens(),
 		Reader: &Reader{rd: rd},
 	}
 }

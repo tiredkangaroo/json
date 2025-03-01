@@ -31,7 +31,7 @@ const EXAMPLEJSON = `{
 
 func TestLexer(t *testing.T) {
 	l := NewLexer(bufio.NewReader(strings.NewReader(EXAMPLEJSON)))
-	expected := []*token.Token{
+	expected := []token.Token{
 		token.LBRACKET_TOKEN, // {
 
 		token.NewToken(token.LITERAL, "name"),
@@ -98,8 +98,9 @@ func TestLexer(t *testing.T) {
 	}
 
 	i := 0
+	ps := *l.PoolSlice()
 	for {
-		tk, err := l.NextToken()
+		err := l.NextToken()
 		if err == io.EOF {
 			if len(expected) > i {
 				t.Errorf("more tokens were expected (expected not exhausted)")
@@ -110,6 +111,7 @@ func TestLexer(t *testing.T) {
 			t.Errorf(err.Error())
 			t.FailNow()
 		}
+		tk := ps[len(ps)-1]
 		// tks = append(tks, tk)
 		log.Printf("%d: %s", i, tk.String())
 		if len(expected) <= i {
@@ -131,15 +133,13 @@ func BenchmarkLexer(b *testing.B) {
 			rd := bufio.NewReader(strings.NewReader(EXAMPLEJSON))
 			l := NewLexer(rd)
 			for {
-				t, err := l.NextToken()
+				err := l.NextToken()
 				if err == io.EOF {
 					break
 				}
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
-				// possibly avoids compiler-optimization
-				_ = t
 			}
 		}
 	})
