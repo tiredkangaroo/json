@@ -2,9 +2,8 @@ package parser
 
 import (
 	"bufio"
+	"encoding/json"
 	"json/internals/lexer"
-	"os"
-	"runtime/pprof"
 	"strings"
 	"testing"
 )
@@ -235,12 +234,12 @@ func BenchmarkParserLarge(b *testing.B) {
 func BenchmarkParserNoParallelLarge(b *testing.B) {
 	b.ReportAllocs()
 
-	cpufile, _ := os.Create("cpu.pprof")
-	pprof.StartCPUProfile(cpufile)
-	defer pprof.StopCPUProfile()
+	// cpufile, _ := os.Create("cpu.pprof")
+	// pprof.StartCPUProfile(cpufile)
+	// defer pprof.StopCPUProfile()
 
-	memfile, _ := os.Create("mem.pprof")
-	pprof.WriteHeapProfile(memfile)
+	// memfile, _ := os.Create("mem.pprof")
+	// pprof.WriteHeapProfile(memfile)
 
 	b.SetBytes(int64(len(LoadLarge)))
 	b.ResetTimer()
@@ -252,5 +251,90 @@ func BenchmarkParserNoParallelLarge(b *testing.B) {
 		if err != nil {
 			b.Fatalf("unexpected error: %s", err.Error())
 		}
+	}
+}
+
+func BenchmarkParserSmallStdlib(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadSmall)))
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var v any
+			err := json.Unmarshal([]byte(LoadSmall), &v)
+			if err != nil {
+				b.Fatalf("unexpected error: %s", err.Error())
+			}
+		}
+	})
+}
+
+func BenchmarkParserSmallStdlibNoParallel(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadSmall)))
+	b.ResetTimer()
+	for range b.N {
+		var v any
+		err := json.Unmarshal([]byte(LoadSmall), &v)
+		if err != nil {
+			b.Fatalf("unexpected error: %s", err.Error())
+		}
+	}
+}
+
+func BenchmarkParserMediumStdlib(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadMedium)))
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var v any
+			err := json.Unmarshal([]byte(LoadMedium), &v)
+			if err != nil {
+				b.Fatalf("unexpected error: %s", err.Error())
+			}
+		}
+	})
+}
+
+func BenchmarkParserMediumStdlibNoParallel(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadMedium)))
+	b.ResetTimer()
+	for range b.N {
+		var v any
+		err := json.Unmarshal([]byte(LoadMedium), &v)
+		if err != nil {
+			b.Fatalf("unexpected error: %s", err.Error())
+		}
+	}
+}
+
+func BenchmarkParserLargeStdlib(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadLarge)))
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var v any
+			err := json.Unmarshal([]byte(LoadLarge), &v)
+			if err != nil {
+				b.Fatalf("unexpected error: %s", err.Error())
+			}
+		}
+	})
+}
+
+func BenchmarkParserLargeStdlibNoParallel(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(LoadLarge)))
+	b.ResetTimer()
+	for range b.N {
+		var v any
+		err := json.Unmarshal([]byte(LoadLarge), &v)
+		if err != nil {
+			b.Fatalf("unexpected error: %s", err.Error())
+		}
+		_ = v
 	}
 }
