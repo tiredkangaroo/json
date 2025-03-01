@@ -235,8 +235,12 @@ func BenchmarkParserLarge(b *testing.B) {
 func BenchmarkParserNoParallelLarge(b *testing.B) {
 	b.ReportAllocs()
 
-	file, _ := os.Create("mem.pprof")
-	pprof.WriteHeapProfile(file)
+	cpufile, _ := os.Create("cpu.pprof")
+	pprof.StartCPUProfile(cpufile)
+	defer pprof.StopCPUProfile()
+
+	memfile, _ := os.Create("mem.pprof")
+	pprof.WriteHeapProfile(memfile)
 
 	b.SetBytes(int64(len(LoadLarge)))
 	b.ResetTimer()

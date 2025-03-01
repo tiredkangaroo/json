@@ -15,7 +15,7 @@ const EXAMPLEJSON = `{
 	"cars": [
 		{
 			"model_name": "Honda 2002",
-			"vin": NULL,
+			"vin": null,
 			"years": 23,
 			"needs_maintnence": true
 		},
@@ -98,7 +98,7 @@ func TestLexer(t *testing.T) {
 	}
 
 	i := 0
-	ps := *l.PoolSlice()
+	ps := l.PoolSlice()
 	for {
 		err := l.NextToken()
 		if err == io.EOF {
@@ -111,7 +111,7 @@ func TestLexer(t *testing.T) {
 			t.Errorf(err.Error())
 			t.FailNow()
 		}
-		tk := ps[len(ps)-1]
+		tk := (*ps)[len(*ps)-1]
 		// tks = append(tks, tk)
 		log.Printf("%d: %s", i, tk.String())
 		if len(expected) <= i {

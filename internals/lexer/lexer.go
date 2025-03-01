@@ -11,12 +11,23 @@ var FALSE_REMAINING = [...]byte{'a', 'l', 's', 'e'}
 var NULL_REMAINING = [...]byte{'u', 'l', 'l'}
 
 type Lexer struct {
-	tokens *tokens
+	tokens *[]token.Token
 	*Reader
 }
 
 func (l *Lexer) PoolSlice() *[]token.Token {
-	return &l.tokens.tokens
+	return l.tokens
+}
+
+func (l *Lexer) AddNewToken(t token.Type, v string) {
+	*l.tokens = append(*l.tokens, token.Token{
+		T: t,
+		V: v,
+	})
+}
+
+func (l *Lexer) AddExistingToken(t token.Token) {
+	*l.tokens = append(*l.tokens, t)
 }
 
 func (l *Lexer) NextToken() error {
@@ -26,22 +37,22 @@ func (l *Lexer) NextToken() error {
 	}
 	switch c {
 	case '{':
-		l.tokens.AddToken(token.LBRACKET_TOKEN)
+		l.AddExistingToken(token.LBRACKET_TOKEN)
 		return nil
 	case '}':
-		l.tokens.AddToken(token.RBRACKET_TOKEN)
+		l.AddExistingToken(token.RBRACKET_TOKEN)
 		return nil
 	case '[':
-		l.tokens.AddToken(token.LBRACE_TOKEN)
+		l.AddExistingToken(token.LBRACE_TOKEN)
 		return nil
 	case ']':
-		l.tokens.AddToken(token.RBRACE_TOKEN)
+		l.AddExistingToken(token.RBRACE_TOKEN)
 		return nil
 	case ':':
-		l.tokens.AddToken(token.COLON_TOKEN)
+		l.AddExistingToken(token.COLON_TOKEN)
 		return nil
 	case ',':
-		l.tokens.AddToken(token.COMMA_TOKEN)
+		l.AddExistingToken(token.COMMA_TOKEN)
 		return nil
 	case '"':
 		return l.readLiteral()
@@ -59,7 +70,7 @@ func (l *Lexer) NextToken() error {
 		if u != TRUE_REMAINING {
 			return ErrUnknownIdentifier
 		}
-		l.tokens.AddToken(token.TRUE_TOKEN)
+		l.AddExistingToken(token.TRUE_TOKEN)
 		return nil
 	case 'f':
 		u := [4]byte{}
@@ -70,7 +81,7 @@ func (l *Lexer) NextToken() error {
 		if u != FALSE_REMAINING {
 			return ErrUnknownIdentifier
 		}
-		l.tokens.AddToken(token.FALSE_TOKEN)
+		l.AddExistingToken(token.FALSE_TOKEN)
 		return nil
 	case 'n':
 		u := [3]byte{}
@@ -81,7 +92,7 @@ func (l *Lexer) NextToken() error {
 		if u != NULL_REMAINING {
 			return ErrUnknownIdentifier
 		}
-		l.tokens.AddToken(token.NULL_TOKEN)
+		l.AddExistingToken(token.NULL_TOKEN)
 		return nil
 	}
 	return ErrUnknownIdentifier
@@ -111,7 +122,7 @@ func (l *Lexer) readLiteral() error {
 		}
 		s = append(s, b)
 	}
-	l.tokens.NewToken(token.LITERAL, string(s))
+	l.AddNewToken(token.LITERAL, string(s))
 	return err
 }
 
@@ -154,7 +165,7 @@ func (l *Lexer) readNumber(n byte) error {
 		l.UnreadByte()
 		break
 	}
-	l.tokens.NewToken(token.NUMBER, string(s))
+	l.AddNewToken(token.NUMBER, string(s))
 	return nil
 }
 
@@ -183,8 +194,9 @@ func (l *Lexer) readNumber(n byte) error {
 // }
 
 func NewLexer(rd io.Reader) Lexer {
+	tks := make([]token.Token, 0, 4096)
 	return Lexer{
-		tokens: newTokens(),
+		tokens: &tks,
 		Reader: &Reader{rd: rd},
 	}
 }
